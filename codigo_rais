@@ -1,0 +1,507 @@
+setwd("C:/Users/Decio/Desktop/RAIS")
+
+#pacotes que serão utilizados
+
+library(tidyverse)
+
+library(ggplot2)
+
+library(stargazer)
+
+library(psych)
+
+library(car)
+
+library(sjPlot)
+
+library(gridExtra)
+
+library(lmtest)
+
+#Baixar os dados diretamente do repositório de base dos dados em:
+#https://basedosdados.org/dataset/br-me-rais?bdm_table=microdados_vinculos
+
+#Abaixo seleciono o projeto criado no SQL
+
+set_billing_id("abstract-code-362514")
+
+#Abaixo puxa os dados da rais para a pasta criada no google
+
+query <- bdplyr("br_me_rais.microdados_vinculos")
+
+#Seleciona as variáveis de interesse na base criada
+
+rais <- query %>% 
+  select(ano,sigla_uf, id_municipio, tipo_vinculo, vinculo_ativo_3112,
+         tempo_emprego, quantidade_horas_contratadas, valor_remuneracao_media_sm,
+         valor_remuneracao_media, faixa_remuneracao_dezembro_sm, 
+         valor_remuneracao_dezembro_sm, valor_remuneracao_dezembro,
+         cbo_2002, idade, grau_instrucao_1985_2005, 
+         grau_instrucao_apos_2005, sexo, raca_cor, natureza_juridica) %>% 
+  filter(cbo_2002 %in% c("3514", "351405", "351410", "351415", "351420", "351425",
+                         "351430", "351435", "351440",
+                         "2412", "241205", "241210", "241215", "241220", "241225",
+                         "241230", "241235", 
+                         "2422", "242205", "242210", "242215", "242220", "242225",
+                         "242230", "242235", "242240", "242245", "242250",
+                         "1113" ,"111305", "111310", "111315", "111320", "111325",
+                         "111330", "111335", "111340", "111345", "111350",
+                         "2410", "241005", "241010", "241015", "241020", "241025",
+                         "241030", "241035", "241040", "241045", "241050",
+                         "2423", "242305"))
+
+rais <- bd_collect(rais)
+
+
+#Para quem deseja ir direto a base de dados que utilizamos aqui, basta reproduzir,
+#o código abaixo (lembrando que rais é a pasta do meu computador, devendo o código
+#ser ajustado as propriedades do pc local).
+
+rais <- read_csv("C:/Users/decio.rocha/Desktop/RAIS/rais.csv", 
+                 col_types = cols(...1 = col_skip()))
+
+#Com a base no PC, limpo o código recodificicando as variáveis, 
+#filtrando apenas os que estão ativos em 31/12 de cada ano, com ensino superior
+#completo e criando as famílias ocupacionais
+
+
+rais_direito <- rais %>% 
+  filter(!is.na(sexo),
+         ano >= 2000,
+         vinculo_ativo_3112 == 1) %>%
+  mutate(genero = case_when(
+    sexo == 1 ~ "Masculino",
+    sexo == 2 ~ "Feminino"
+  ),
+  raca = case_when(
+    raca_cor == 1 ~ "Indigena",
+    raca_cor == 2 ~ "Branca",
+    raca_cor == 4 ~ "Preta",
+    raca_cor == 6 ~ "Amarela",
+    raca_cor == 8 ~ "Parda",
+    raca_cor == 9 ~ "Nenhum"
+  ),
+  familia = case_when(
+    cbo_2002 %in% c(2410,241005, 241010, 241015, 241020, 241025, 
+                    241030, 241035, 241040, 241045) ~ "Advogados",
+    cbo_2002 %in% c(2412,241205, 241210, 241215, 241220, 241225,
+                    241230, 241235, 241240, 241245) ~ "Procuradores e advogados públicos",
+    cbo_2002 %in% c(2422,242205, 242210, 242215, 242220, 242225,
+                    242230, 242235, 242240, 242245, 242250) ~ "Membros do Ministério Público",
+    cbo_2002 %in% c(3514,351405, 351410, 351415, 351420, 351425, 
+                    351430, 351435, 351440) ~ "Serventuários da Justiça e afins",
+    cbo_2002 %in% c(1113,111305, 111310, 111315, 111320, 111325, 
+                    111330, 111335, 111340, 111345) ~ "Magistrados",
+    cbo_2002 %in% c(2423,242305) ~ "Delegado (a) de Polícia"
+    ),
+  escolaridade = case_when(
+    grau_instrucao_1985_2005 == 1 ~ "Analfabeto",
+    grau_instrucao_apos_2005 ==  1 ~ "Analfabeto",
+    grau_instrucao_1985_2005 == 2 ~ "4 Série Incompleto", 
+    grau_instrucao_apos_2005 == 2 ~ "4 Série Incompleto",
+    grau_instrucao_1985_2005 == 3 ~ "4 Série Completo",
+    grau_instrucao_apos_2005 == 3 ~ "4 Série Completo",
+    grau_instrucao_1985_2005 == 4 ~ "8 Série Incompleto",
+    grau_instrucao_apos_2005 == 4 ~ "8 Série Incompleto",
+    grau_instrucao_1985_2005 == 5 ~ "8 Série Completo",
+    grau_instrucao_apos_2005 == 5 ~ "8 Série Completo",
+    grau_instrucao_1985_2005 == 6 ~ "2 Grau Incompleto",
+    grau_instrucao_apos_2005 == 6 ~ "2 Grau Incompleto",
+    grau_instrucao_1985_2005 == 7 ~ "2 Grau Completo",
+    grau_instrucao_apos_2005 == 7 ~ "2 Grau Completo",
+    grau_instrucao_1985_2005 == 8 ~ "Superior Incompleto",
+    grau_instrucao_apos_2005 == 8 ~ "Superior Incompleto",
+    grau_instrucao_1985_2005 == 9 ~ "Superior Completo",
+    grau_instrucao_apos_2005 == 9 ~ "Superior Completo",
+    grau_instrucao_apos_2005 == 10 ~ "Mestrado",
+    grau_instrucao_apos_2005 == 11 ~ "Doutorado"
+  ),
+  vinculo = case_when(
+    tipo_vinculo == 10 ~ "CLT U/PJ Ind",
+    tipo_vinculo == 15 ~ "CLT U/PF Ind",
+    tipo_vinculo == 20 ~ "CLT R/PJ Ind",
+    tipo_vinculo == 25 ~ "CLT R/PF Ind",
+    tipo_vinculo == 30 ~ "Estatutário",
+    tipo_vinculo == 31 ~ "Estatutário RGPS",
+    tipo_vinculo == 35 ~ "Estatutário Não Efetivo",
+    tipo_vinculo == 40 ~ "Avulso",
+    tipo_vinculo == 50 ~ "Temporário",
+    tipo_vinculo == 55 ~ "Aprendiz",
+    tipo_vinculo == 60 ~ "CLT U/PJ Determinado",
+    tipo_vinculo == 65 ~ "CLT U/PF Determinado",
+    tipo_vinculo == 70 ~ "CLT R/PJ Determinado",
+    tipo_vinculo == 75 ~ "CLT R/PF Determinado",
+    tipo_vinculo == 80 ~ "Diretor",
+    tipo_vinculo == 90 ~ "Contrato Prazo Determinado",
+    tipo_vinculo == 95 ~ "Contrato TMP Determinado",
+    tipo_vinculo == 96 ~ "Contrato Lei Estadual",
+    tipo_vinculo == 97 ~ "Contrato Lei Municipal"
+  ),
+  INPC_DEZEMBRO = case_when(
+      ano == 2003 ~ "2318.03",
+      ano == 2004 ~ "2460.19",
+      ano == 2005 ~ "2584.35",
+      ano == 2006 ~ "2657.05",
+      ano == 2007 ~ "2794.03",
+      ano == 2008 ~ "2975.11",
+      ano == 2009 ~ "3097.50",
+      ano == 2010 ~ "3297.76",
+      ano == 2011 ~ "3498.27",
+      ano == 2012 ~ "3715.07",
+      ano == 2013 ~ "3921.74",
+      ano == 2014 ~ "4165.99",
+      ano == 2015 ~ "4635.75",
+      ano == 2016 ~ "4940.78",
+      ano == 2017 ~ "5042.92",
+      ano == 2018 ~ "5216.08",
+      ano == 2019 ~ "5449.84",
+      ano == 2020 ~ "5746.71"
+    ),
+  REGIAO = case_when(
+    sigla_uf %in% c("AM", "AC", "RO", "RR", "AP", "PA", "TO") ~ "NORTE",
+    sigla_uf %in% c ("GO", "MT", "MS", "DF") ~ "CENTRO-OESTE",
+    sigla_uf %in% c("MA", "PI", "RN", "CE", "PB", "BA", "PE", "AL", "SE") ~ "NORDESTE",
+    sigla_uf %in% c("RJ", "MG", "SP", "ES") ~ "SUDESTE",
+    sigla_uf %in% c("SC", "PR", "RS") ~ "SUL"
+  ),
+  FAIXA_ETARIA = case_when(
+    idade %in% c(10:14) ~ "Entre 10 e 14 anos",
+    idade %in% c(15:17) ~ "Entre 15 e 17 anos",
+    idade %in% c(18:24) ~ "Entre 18 e 24 anos",
+    idade %in% c(25:29) ~ "Entre 25 e 29 anos",
+    idade %in% c(30:34) ~ "Entre 30 e 34 anos",
+    idade %in% c(35:39) ~ "Entre 35 e 39 anos",
+    idade %in% c(40:44) ~ "Entre 40 e 44 anos",
+    idade %in% c(45:49) ~ "Entre 45 e 49 anos",
+    idade %in% c(50:54) ~ "Entre 50 e 54 anos",
+    idade %in% c(55:59) ~ "Entre 55 e 59 anos",
+    idade >=60 ~ "60 anos ou mais",
+  ),
+  INPC_DEZ_2020 = "5746.71")
+
+#Abaixo rodo o gráfico 1 selecionando e agrupando as variáveis de interesse
+
+vinculos <- rais_direito %>% 
+  select(genero, ano, familia, escolaridade, vinculo_ativo_3112) %>% 
+  filter(escolaridade %in% c("Superior Completo", "Mestrado", "Doutorado"),
+         !is.na(familia)) %>% 
+  group_by(familia, ano, genero) %>% 
+  summarise(n = sum(vinculo_ativo_3112)) 
+
+vinculos %>% 
+  mutate(familia = case_when(
+    familia == "Advogados" ~ "Advogados (as)",
+    familia == "Procuradores e advogados públicos" ~ "Procuradores (as)
+e Advogados (as) Públicos",
+    familia == "Membros do Ministério Público" ~ "Membros do
+MP",
+    familia == "Serventuários da Justiça e afins" ~ "Servetuários da
+Justiça e afins",
+    familia == "Magistrados" ~ "Magistrados (as)",
+    familia == "Delegado (a) de Polícia" ~ "Delegado (a) de Polícia"
+  )) %>%
+  ggplot(aes(ano, n, col = genero)) +
+  geom_line() +
+  geom_point() +
+  facet_wrap(~familia) +
+  scale_color_manual(values = c("black", "blue")) +
+  scale_x_continuous(breaks = c(2003:2020)) +
+  scale_y_continuous(breaks = c(5000, 15000, 30000, 40000, 50000, 60000)) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  labs(x = "Ano", y = "Total de vínculos anuais",
+       col = "Gênero")
+
+#reformula a base adicionando apenas as variáveis de interesse e 
+#deflacionando os valores de renda pelo INPC de dezembro de 2020
+
+DEFLACIONADOS <- rais_direito %>% 
+  select(ano,familia, cbo_2002,genero, valor_remuneracao_dezembro, INPC_DEZEMBRO, sexo,
+         escolaridade, REGIAO,FAIXA_ETARIA, idade, sigla_uf, raca,
+         quantidade_horas_contratadas, tipo_vinculo) %>% 
+  mutate(as.numeric(INPC_DEZEMBRO)) %>% 
+  mutate(INDICE = "5746.71") %>% 
+  mutate(as.numeric(INDICE)) %>% 
+  mutate(DEFLACAO = `as.numeric(INDICE)`/`as.numeric(INPC_DEZEMBRO)`) %>% 
+  mutate(REAL = (`as.numeric(INDICE)`/`as.numeric(INPC_DEZEMBRO)`)* valor_remuneracao_dezembro)
+
+#rodamos o gráfico 2
+
+DEFLACIONADOS %>% 
+  group_by(ano, familia, genero) %>% 
+  summarise(n = mean(REAL)) %>% 
+  na.omit() %>% 
+  mutate(familia = case_when(
+    familia == "Advogados" ~ "Advogados (as)",
+    familia == "Procuradores e advogados públicos" ~ "Procuradores (as)
+e Advogados (as) Públicos",
+    familia == "Membros do Ministério Público" ~ "Membros do
+MP",
+    familia == "Serventuários da Justiça e afins" ~ "Servetuários da
+Justiça e afins",
+    familia == "Magistrados" ~ "Magistrados (as)",
+    familia == "Delegado (a) de Polícia" ~ "Delegado (a) de Polícia"
+  )) %>% 
+  ggplot(aes(ano, n, col = genero)) +
+  geom_line() +
+  geom_point () +
+  facet_wrap(~familia) +
+  scale_color_manual(values = c("black", "blue")) + 
+  scale_x_continuous(breaks = c(2003:2020)) +
+  theme(axis.text.x = element_text(angle = 90)) +
+  labs(x = "Ano", y = "Valor médio recebido",
+       col = "Gênero")
+
+
+#Quadro 1 em que determino os decis de renda a partir da renda real recebida
+
+quantile(DEFLACIONADOS$REAL, probs = c(0.10, 0.20, 0.30, 0.40, 0.50,
+                                 0.60, 0.70, 0.80, 0.90, 1.0))
+
+#Retiro os decis de cada família ocupacional e agrupo ao final no DATA FRAME decis_renda
+
+adv <- DEFLACIONADOS %>% 
+  select(familia, genero, REAL) %>% 
+  filter(familia == "Advogados")
+
+adv_tab <- data.frame(do.call("rbind", tapply(adv$REAL, adv$genero, quantile,
+                        probs = c(0.10, 0.20, 0.30, 0.40, 0.50,
+                                  0.60, 0.70, 0.80, 0.90, 1.0)))) %>% 
+  mutate(OCUPACAO = "Advogados") %>% 
+  mutate(GENERO = c("feminino", "masculino")) %>% 
+  pivot_longer(cols = X10.:X100.) %>% 
+  rename(DECIL = name) %>% 
+  rename(SALARIO = value)
+  
+dele <- DEFLACIONADOS %>% 
+  select(familia, genero, REAL) %>% 
+  filter(familia == "Delegado (a) de Polícia") 
+
+dele_tab <- data.frame(do.call("rbind", tapply(dele$REAL, dele$genero, quantile,
+                                              probs = c(0.10, 0.20, 0.30, 0.40, 0.50,
+                                                        0.60, 0.70, 0.80, 0.90, 1.0)))) %>% 
+  mutate(OCUPACAO = "Delegado (a) de Polícia") %>% 
+  mutate(GENERO = c("feminino", "masculino")) %>% 
+  pivot_longer(cols = X10.:X100.) %>% 
+  rename(DECIL = name) %>% 
+  rename(SALARIO = value)
+
+mag <- DEFLACIONADOS %>% 
+  select(familia, genero, REAL) %>% 
+  filter(familia == "Magistrados")
+
+mag_tab <- data.frame(do.call("rbind", tapply(mag$REAL, mag$genero, quantile,
+                                               probs = c(0.10, 0.20, 0.30, 0.40, 0.50,
+                                                         0.60, 0.70, 0.80, 0.90, 1.0)))) %>% 
+  mutate(OCUPACAO = "Magistrados") %>% 
+  mutate(GENERO = c("feminino", "masculino")) %>% 
+  pivot_longer(cols = X10.:X100.) %>% 
+  rename(DECIL = name) %>% 
+  rename(SALARIO = value)
+
+MP <- DEFLACIONADOS %>% 
+  select(familia, genero, REAL) %>% 
+  filter(familia == "Membros do Ministério Público")
+
+MP_tab <- data.frame(do.call("rbind", tapply(MP$REAL, MP$genero, quantile,
+                                               probs = c(0.10, 0.20, 0.30, 0.40, 0.50,
+                                                         0.60, 0.70, 0.80, 0.90, 1.0)))) %>% 
+  mutate(OCUPACAO = "Membros do Ministério Público") %>% 
+  mutate(GENERO = c("feminino", "masculino")) %>% 
+  pivot_longer(cols = X10.:X100.) %>% 
+  rename(DECIL = name) %>% 
+  rename(SALARIO = value)
+
+proeadv <- DEFLACIONADOS %>% 
+  select(familia, genero, REAL) %>% 
+  filter(familia == "Procuradores e advogados públicos")
+
+proeadv_tab <- data.frame(do.call("rbind", tapply(proeadv$REAL, proeadv$genero, quantile,
+                                             probs = c(0.10, 0.20, 0.30, 0.40, 0.50,
+                                                       0.60, 0.70, 0.80, 0.90, 1.0)))) %>% 
+  mutate(OCUPACAO = "Procuradores e advogados públicos") %>% 
+  mutate(GENERO = c("feminino", "masculino")) %>% 
+  pivot_longer(cols = X10.:X100.) %>% 
+  rename(DECIL = name) %>% 
+  rename(SALARIO = value)
+
+serv <- DEFLACIONADOS %>% 
+  select(familia, genero, REAL) %>% 
+  filter(familia == "Serventuários da Justiça e afins")
+
+serv_tab <- data.frame(do.call("rbind", tapply(serv$REAL, serv$genero, quantile,
+                                             probs = c(0.10, 0.20, 0.30, 0.40, 0.50,
+                                                       0.60, 0.70, 0.80, 0.90, 1.0)))) %>% 
+  mutate(OCUPACAO = "Serventuários da Justiça e afins") %>% 
+  mutate(GENERO = c("feminino", "masculino")) %>% 
+  pivot_longer(cols = X10.:X100.) %>% 
+  rename(DECIL = name) %>% 
+  rename(SALARIO = value)
+
+#Juntando todos os conjuntos de dados por família criados acima e transformando,
+#em formato wider
+
+decis_renda <- rbind(adv_tab, dele_tab, mag_tab, MP_tab, proeadv_tab, serv_tab) %>% 
+  pivot_wider(names_from = DECIL, values_from = SALARIO) %>% 
+  mutate(decil_1 = round(X10., digits = 1)) %>% 
+  mutate(decil_2 = round(X20., digits = 1)) %>% 
+  mutate(decil_3 = round(X30., digits = 1)) %>% 
+  mutate(decil_4 = round(X40., digits = 1)) %>% 
+  mutate(decil_5 = round(X50., digits = 1)) %>% 
+  mutate(decil_6 = round(X60., digits = 1)) %>% 
+  mutate(decil_7 = round(X70., digits = 1)) %>% 
+  mutate(decil_8 = round(X80., digits = 1)) %>% 
+  mutate(decil_9 = round(X90., digits = 1)) %>% 
+  mutate(decil_10 = round(X100., digits = 1)) 
+
+
+write.csv2(teste, file = "decis.csv")
+
+#Abaixo separamos sempre um data frame por família e rodamos
+#modelos de regressão linear para cada um deles
+
+advogados <- DEFLACIONADOS %>% 
+  select(ano,familia,REAL, genero,sigla_uf, REGIAO, FAIXA_ETARIA, escolaridade,
+         idade, raca, sigla_uf, quantidade_horas_contratadas, tipo_vinculo) %>% 
+  filter(escolaridade %in% c("Superior Completo", "Mestrado", "Doutorado")) %>% 
+  filter(familia == "Advogados") %>% 
+  filter(idade >= 18) %>% 
+  mutate(log_renda = log(REAL))
+
+advogados[is.na(advogados) | advogados=="-Inf"] = NA
+
+advogados$REGIAO <- factor(advogados$REGIAO)
+advogados$REGIAO <- relevel(advogados$REGIAO,
+                            ref = "SUL")
+
+modelo1 <- lm(log_renda ~ genero + FAIXA_ETARIA + REGIAO ,
+              data = advogados)  
+
+summary(modelo1)
+
+delegado <- DEFLACIONADOS %>% 
+  select(familia,REAL, genero, REGIAO, FAIXA_ETARIA, escolaridade, idade, raca) %>% 
+  filter(escolaridade %in% c("Superior Completo", "Mestrado", "Doutorado")) %>% 
+  filter(familia == "Delegado (a) de Polícia") %>% 
+  filter(idade >= 18) %>% 
+  mutate(log_renda = log(REAL)) 
+
+delegado[is.na(delegado) | delegado=="-Inf"] = NA
+
+delegado$REGIAO <- factor(delegado$REGIAO)
+delegado$REGIAO <- relevel(delegado$REGIAO,
+                            ref = "SUL")
+
+modelo2 <- lm(log_renda ~ genero + FAIXA_ETARIA + REGIAO,
+              data = delegado)
+
+summary(modelo2)
+
+magistrados <- DEFLACIONADOS %>% 
+  select(familia,REAL, genero, REGIAO, FAIXA_ETARIA, escolaridade, idade) %>% 
+  filter(escolaridade %in% c("Superior Completo", "Mestrado", "Doutorado")) %>% 
+  filter(familia == "Magistrados") %>% 
+  filter(idade >= 18) %>% 
+  mutate(log_renda = log(REAL))
+
+magistrados[is.na(magistrados) | magistrados=="-Inf"] = NA
+
+magistrados$REGIAO <- factor(magistrados$REGIAO)
+magistrados$REGIAO <- relevel(magistrados$REGIAO,
+                              ref = "SUL")
+
+modelo3 <- lm(log_renda ~ genero + FAIXA_ETARIA + REGIAO ,
+              data = magistrados)
+
+summary(modelo3)
+
+MP <- DEFLACIONADOS %>% 
+  select(familia,REAL, genero, REGIAO, FAIXA_ETARIA, escolaridade, idade) %>% 
+  filter(escolaridade %in% c("Superior Completo", "Mestrado", "Doutorado")) %>% 
+  filter(familia == "Membros do Ministério Público") %>% 
+  filter(idade >= 18) %>% 
+  mutate(log_renda = log(REAL))
+
+MP[is.na(MP) | MP=="-Inf"] = NA
+
+MP$REGIAO <- factor(MP$REGIAO)
+MP$REGIAO <- relevel(MP$REGIAO,
+                           ref = "SUL")
+
+modelo4 <- lm(log_renda ~ genero + FAIXA_ETARIA + REGIAO,
+              data = MP)
+
+summary(modelo4)
+
+PROCURADORES <- DEFLACIONADOS %>% 
+  select(familia,REAL, genero, REGIAO, FAIXA_ETARIA, escolaridade, idade) %>% 
+  filter(escolaridade %in% c("Superior Completo", "Mestrado", "Doutorado")) %>% 
+  filter(familia == "Procuradores e advogados públicos") %>% 
+  filter(idade >= 18) %>% 
+  mutate(log_renda = log(REAL))
+
+PROCURADORES[is.na(PROCURADORES) | PROCURADORES=="-Inf"] = NA
+
+PROCURADORES$REGIAO <- factor(PROCURADORES$REGIAO)
+PROCURADORES$REGIAO <- relevel(PROCURADORES$REGIAO,
+                               ref = "SUL")
+
+modelo5 <- lm(log_renda ~ genero + FAIXA_ETARIA + REGIAO,
+              data = PROCURADORES)
+
+summary(modelo5)
+
+serventuarios <- DEFLACIONADOS %>% 
+  select(familia,REAL, genero, REGIAO, FAIXA_ETARIA, escolaridade, idade) %>% 
+  filter(escolaridade %in% c("Superior Completo", "Mestrado", "Doutorado")) %>% 
+  filter(familia == "Serventuários da Justiça e afins") %>% 
+  filter(idade >= 18) %>% 
+  mutate(log_renda = log(REAL))
+
+serventuarios[is.na(serventuarios) | serventuarios=="-Inf"] = NA
+
+serventuarios$REGIAO <- factor(serventuarios$REGIAO)
+serventuarios$REGIAO <- relevel(serventuarios$REGIAO,
+                                     ref = "SUL")
+
+modelo6 <- lm(log_renda ~ genero + FAIXA_ETARIA + REGIAO,
+              data = serventuarios)
+
+summary(modelo6)
+
+stargazer(type = "html", modelo1, modelo2, modelo3,modelo4,modelo5,modelo6,
+          title = "Resultados",
+          align = T,
+          covariate.labels = c("Gênero = Homem", "Entre 18 e 24 anos",
+                               "Entre 25 e 29 anos","Entre 30 e 34 anos",
+                               "Entre 35 e 39 anos", "Entre 40 e 44 anos",
+                               "Entre 45 e 49 anos", "Entre 50 e 54 anos",
+                               "Entre 55 e 59 anos", "Norte", 
+                               "Centro-Oeste", "Nordeste", "Sudeste"),
+          no.space = TRUE,
+          omit.stat = c("ser", "f"),
+          out = "rais.html")
+
+vif(modelo6)
+
+DEFLACIONADOS %>% 
+  ggplot(aes(FAIXA_ETARIA, log(REAL), col = genero)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  theme(axis.text.x = element_text(angle = 90))
+
+A <- plot_model(modelo1, type = "eff",terms = "genero", show.values = T, width = 0.1)
+B <- plot_model(modelo2, type = "eff", terms = "genero")
+C <- plot_model(modelo3, type = "eff", terms = "genero")
+D <- plot_model(modelo4, type = "eff", terms = "genero")
+E <- plot_model(modelo5, type = "eff", terms = "genero")
+FA <- plot_model(modelo6, type = "eff", terms = "genero")
+
+grid.arrange(A, B, C, D, E, FA)
+
+plot_model(modelo1, type = "pred", terms = c("FAIXA_ETARIA","genero"))
+plot_model(modelo2, type = "pred", terms = c("FAIXA_ETARIA", "genero"))
+plot_model(modelo3, type = "pred", terms = c("FAIXA_ETARIA", "genero"))
+plot_model(modelo4, type = "pred", terms = c("FAIXA_ETARIA", "genero"))
+plot_model(modelo5, type = "pred", terms = c("FAIXA_ETARIA", "genero"))
+plot_model(modelo6, type = "pred", terms = c("FAIXA_ETARIA", "genero"))
+table(DEFLACIONADOS$genero, DEFLACIONADOS$FAIXA_ETARIA, DEFLACIONADOS$familia)
