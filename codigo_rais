@@ -18,10 +18,10 @@ library(gridExtra)
 
 library(lmtest)
 
-#Baixar os dados diretamente do repositório de base dos dados em:
-#https://basedosdados.org/dataset/br-me-rais?bdm_table=microdados_vinculos
+#Baixar os dados diretamente do repositório de base dos dados em:##########
+#https://basedosdados.org/dataset/br-me-rais?bdm_table=microdados_vinculos#
 
-#Abaixo seleciono o projeto criado no SQL
+#Abaixo seleciono o projeto criado no SQL#
 
 set_billing_id("abstract-code-362514")
 
@@ -93,7 +93,7 @@ rais_direito <- rais %>%
     cbo_2002 %in% c(1113,111305, 111310, 111315, 111320, 111325, 
                     111330, 111335, 111340, 111345) ~ "Magistrados",
     cbo_2002 %in% c(2423,242305) ~ "Delegado (a) de Polícia"
-    ),
+  ),
   escolaridade = case_when(
     grau_instrucao_1985_2005 == 1 ~ "Analfabeto",
     grau_instrucao_apos_2005 ==  1 ~ "Analfabeto",
@@ -138,25 +138,25 @@ rais_direito <- rais %>%
     tipo_vinculo == 97 ~ "Contrato Lei Municipal"
   ),
   INPC_DEZEMBRO = case_when(
-      ano == 2003 ~ "2318.03",
-      ano == 2004 ~ "2460.19",
-      ano == 2005 ~ "2584.35",
-      ano == 2006 ~ "2657.05",
-      ano == 2007 ~ "2794.03",
-      ano == 2008 ~ "2975.11",
-      ano == 2009 ~ "3097.50",
-      ano == 2010 ~ "3297.76",
-      ano == 2011 ~ "3498.27",
-      ano == 2012 ~ "3715.07",
-      ano == 2013 ~ "3921.74",
-      ano == 2014 ~ "4165.99",
-      ano == 2015 ~ "4635.75",
-      ano == 2016 ~ "4940.78",
-      ano == 2017 ~ "5042.92",
-      ano == 2018 ~ "5216.08",
-      ano == 2019 ~ "5449.84",
-      ano == 2020 ~ "5746.71"
-    ),
+    ano == 2003 ~ "2318.03",
+    ano == 2004 ~ "2460.19",
+    ano == 2005 ~ "2584.35",
+    ano == 2006 ~ "2657.05",
+    ano == 2007 ~ "2794.03",
+    ano == 2008 ~ "2975.11",
+    ano == 2009 ~ "3097.50",
+    ano == 2010 ~ "3297.76",
+    ano == 2011 ~ "3498.27",
+    ano == 2012 ~ "3715.07",
+    ano == 2013 ~ "3921.74",
+    ano == 2014 ~ "4165.99",
+    ano == 2015 ~ "4635.75",
+    ano == 2016 ~ "4940.78",
+    ano == 2017 ~ "5042.92",
+    ano == 2018 ~ "5216.08",
+    ano == 2019 ~ "5449.84",
+    ano == 2020 ~ "5746.71"
+  ),
   REGIAO = case_when(
     sigla_uf %in% c("AM", "AC", "RO", "RR", "AP", "PA", "TO") ~ "NORTE",
     sigla_uf %in% c ("GO", "MT", "MS", "DF") ~ "CENTRO-OESTE",
@@ -179,7 +179,9 @@ rais_direito <- rais %>%
   ),
   INPC_DEZ_2020 = "5746.71")
 
-#Abaixo rodo o gráfico 1 selecionando e agrupando as variáveis de interesse
+#Abaixo rodo o gráfico 1 selecionando e agrupando as variáveis de interesse#
+#que são família ocupacional, gênero, ano e a contagem dos vínculos ativos##
+#em 31/12###################################################################
 
 vinculos <- rais_direito %>% 
   select(genero, ano, familia, escolaridade, vinculo_ativo_3112) %>% 
@@ -211,8 +213,9 @@ Justiça e afins",
   labs(x = "Ano", y = "Total de vínculos anuais",
        col = "Gênero")
 
-#reformula a base adicionando apenas as variáveis de interesse e 
-#deflacionando os valores de renda pelo INPC de dezembro de 2020
+#reformula a base adicionando apenas as variáveis de interesse e# 
+#deflacionando os valores de renda pelo INPC de dezembro de 2020#
+#com o índice retirado da base sidra do IBGE#####################
 
 DEFLACIONADOS <- rais_direito %>% 
   select(ano,familia, cbo_2002,genero, valor_remuneracao_dezembro, INPC_DEZEMBRO, sexo,
@@ -224,7 +227,7 @@ DEFLACIONADOS <- rais_direito %>%
   mutate(DEFLACAO = `as.numeric(INDICE)`/`as.numeric(INPC_DEZEMBRO)`) %>% 
   mutate(REAL = (`as.numeric(INDICE)`/`as.numeric(INPC_DEZEMBRO)`)* valor_remuneracao_dezembro)
 
-#rodamos o gráfico 2
+#rodamos o gráfico 2#
 
 DEFLACIONADOS %>% 
   group_by(ano, familia, genero) %>% 
@@ -252,33 +255,34 @@ Justiça e afins",
        col = "Gênero")
 
 
-#Quadro 1 em que determino os decis de renda a partir da renda real recebida
+#Quadro 1 em que determino os decis de renda a partir da renda real recebida#
 
 quantile(DEFLACIONADOS$REAL, probs = c(0.10, 0.20, 0.30, 0.40, 0.50,
-                                 0.60, 0.70, 0.80, 0.90, 1.0))
+                                       0.60, 0.70, 0.80, 0.90, 1.0))
 
-#Retiro os decis de cada família ocupacional e agrupo ao final no DATA FRAME decis_renda
+#Retiro os decis de cada família ocupacional e agrupo ao final# 
+#no DATA FRAME decis_renda#####################################
 
 adv <- DEFLACIONADOS %>% 
   select(familia, genero, REAL) %>% 
   filter(familia == "Advogados")
 
 adv_tab <- data.frame(do.call("rbind", tapply(adv$REAL, adv$genero, quantile,
-                        probs = c(0.10, 0.20, 0.30, 0.40, 0.50,
-                                  0.60, 0.70, 0.80, 0.90, 1.0)))) %>% 
+                                              probs = c(0.10, 0.20, 0.30, 0.40, 0.50,
+                                                        0.60, 0.70, 0.80, 0.90, 1.0)))) %>% 
   mutate(OCUPACAO = "Advogados") %>% 
   mutate(GENERO = c("feminino", "masculino")) %>% 
   pivot_longer(cols = X10.:X100.) %>% 
   rename(DECIL = name) %>% 
   rename(SALARIO = value)
-  
+
 dele <- DEFLACIONADOS %>% 
   select(familia, genero, REAL) %>% 
   filter(familia == "Delegado (a) de Polícia") 
 
 dele_tab <- data.frame(do.call("rbind", tapply(dele$REAL, dele$genero, quantile,
-                                              probs = c(0.10, 0.20, 0.30, 0.40, 0.50,
-                                                        0.60, 0.70, 0.80, 0.90, 1.0)))) %>% 
+                                               probs = c(0.10, 0.20, 0.30, 0.40, 0.50,
+                                                         0.60, 0.70, 0.80, 0.90, 1.0)))) %>% 
   mutate(OCUPACAO = "Delegado (a) de Polícia") %>% 
   mutate(GENERO = c("feminino", "masculino")) %>% 
   pivot_longer(cols = X10.:X100.) %>% 
@@ -290,8 +294,8 @@ mag <- DEFLACIONADOS %>%
   filter(familia == "Magistrados")
 
 mag_tab <- data.frame(do.call("rbind", tapply(mag$REAL, mag$genero, quantile,
-                                               probs = c(0.10, 0.20, 0.30, 0.40, 0.50,
-                                                         0.60, 0.70, 0.80, 0.90, 1.0)))) %>% 
+                                              probs = c(0.10, 0.20, 0.30, 0.40, 0.50,
+                                                        0.60, 0.70, 0.80, 0.90, 1.0)))) %>% 
   mutate(OCUPACAO = "Magistrados") %>% 
   mutate(GENERO = c("feminino", "masculino")) %>% 
   pivot_longer(cols = X10.:X100.) %>% 
@@ -303,8 +307,8 @@ MP <- DEFLACIONADOS %>%
   filter(familia == "Membros do Ministério Público")
 
 MP_tab <- data.frame(do.call("rbind", tapply(MP$REAL, MP$genero, quantile,
-                                               probs = c(0.10, 0.20, 0.30, 0.40, 0.50,
-                                                         0.60, 0.70, 0.80, 0.90, 1.0)))) %>% 
+                                             probs = c(0.10, 0.20, 0.30, 0.40, 0.50,
+                                                       0.60, 0.70, 0.80, 0.90, 1.0)))) %>% 
   mutate(OCUPACAO = "Membros do Ministério Público") %>% 
   mutate(GENERO = c("feminino", "masculino")) %>% 
   pivot_longer(cols = X10.:X100.) %>% 
@@ -316,8 +320,8 @@ proeadv <- DEFLACIONADOS %>%
   filter(familia == "Procuradores e advogados públicos")
 
 proeadv_tab <- data.frame(do.call("rbind", tapply(proeadv$REAL, proeadv$genero, quantile,
-                                             probs = c(0.10, 0.20, 0.30, 0.40, 0.50,
-                                                       0.60, 0.70, 0.80, 0.90, 1.0)))) %>% 
+                                                  probs = c(0.10, 0.20, 0.30, 0.40, 0.50,
+                                                            0.60, 0.70, 0.80, 0.90, 1.0)))) %>% 
   mutate(OCUPACAO = "Procuradores e advogados públicos") %>% 
   mutate(GENERO = c("feminino", "masculino")) %>% 
   pivot_longer(cols = X10.:X100.) %>% 
@@ -329,8 +333,8 @@ serv <- DEFLACIONADOS %>%
   filter(familia == "Serventuários da Justiça e afins")
 
 serv_tab <- data.frame(do.call("rbind", tapply(serv$REAL, serv$genero, quantile,
-                                             probs = c(0.10, 0.20, 0.30, 0.40, 0.50,
-                                                       0.60, 0.70, 0.80, 0.90, 1.0)))) %>% 
+                                               probs = c(0.10, 0.20, 0.30, 0.40, 0.50,
+                                                         0.60, 0.70, 0.80, 0.90, 1.0)))) %>% 
   mutate(OCUPACAO = "Serventuários da Justiça e afins") %>% 
   mutate(GENERO = c("feminino", "masculino")) %>% 
   pivot_longer(cols = X10.:X100.) %>% 
@@ -389,7 +393,7 @@ delegado[is.na(delegado) | delegado=="-Inf"] = NA
 
 delegado$REGIAO <- factor(delegado$REGIAO)
 delegado$REGIAO <- relevel(delegado$REGIAO,
-                            ref = "SUL")
+                           ref = "SUL")
 
 modelo2 <- lm(log_renda ~ genero + FAIXA_ETARIA + REGIAO,
               data = delegado)
@@ -425,7 +429,7 @@ MP[is.na(MP) | MP=="-Inf"] = NA
 
 MP$REGIAO <- factor(MP$REGIAO)
 MP$REGIAO <- relevel(MP$REGIAO,
-                           ref = "SUL")
+                     ref = "SUL")
 
 modelo4 <- lm(log_renda ~ genero + FAIXA_ETARIA + REGIAO,
               data = MP)
@@ -461,7 +465,7 @@ serventuarios[is.na(serventuarios) | serventuarios=="-Inf"] = NA
 
 serventuarios$REGIAO <- factor(serventuarios$REGIAO)
 serventuarios$REGIAO <- relevel(serventuarios$REGIAO,
-                                     ref = "SUL")
+                                ref = "SUL")
 
 modelo6 <- lm(log_renda ~ genero + FAIXA_ETARIA + REGIAO,
               data = serventuarios)
@@ -489,19 +493,60 @@ DEFLACIONADOS %>%
   geom_smooth(method = "lm", se = FALSE) +
   theme(axis.text.x = element_text(angle = 90))
 
-A <- plot_model(modelo1, type = "eff",terms = "genero", show.values = T, width = 0.1)
-B <- plot_model(modelo2, type = "eff", terms = "genero")
-C <- plot_model(modelo3, type = "eff", terms = "genero")
-D <- plot_model(modelo4, type = "eff", terms = "genero")
-E <- plot_model(modelo5, type = "eff", terms = "genero")
-FA <- plot_model(modelo6, type = "eff", terms = "genero")
+A <- plot_model(modelo1, type = "eff",terms = c("REGIAO", "genero")) +
+  ggtitle("Advogados (as)") +
+  coord_flip()
+
+B <- plot_model(modelo2, type = "eff", terms = c("REGIAO", "genero")) +
+  ggtitle("Delegado (a) de Polícia") +
+  coord_flip()
+
+C <- plot_model(modelo3, type = "eff", terms = c("REGIAO","genero")) +
+  ggtitle("Magistrados (as)") +
+  coord_flip()
+
+D <- plot_model(modelo4, type = "eff", terms = c("REGIAO","genero")) +
+  ggtitle("Membros do MP") +
+  coord_flip()
+
+E <- plot_model(modelo5, type = "eff", terms = c("REGIAO","genero")) +
+  ggtitle("Proc e advs Públicos") +
+  coord_flip()
+
+FA <- plot_model(modelo6, type = "eff", terms = c("REGIAO","genero")) +
+  ggtitle("Serv de justiça") +
+  coord_flip()
 
 grid.arrange(A, B, C, D, E, FA)
 
-plot_model(modelo1, type = "pred", terms = c("FAIXA_ETARIA","genero"))
-plot_model(modelo2, type = "pred", terms = c("FAIXA_ETARIA", "genero"))
-plot_model(modelo3, type = "pred", terms = c("FAIXA_ETARIA", "genero"))
-plot_model(modelo4, type = "pred", terms = c("FAIXA_ETARIA", "genero"))
-plot_model(modelo5, type = "pred", terms = c("FAIXA_ETARIA", "genero"))
-plot_model(modelo6, type = "pred", terms = c("FAIXA_ETARIA", "genero"))
-table(DEFLACIONADOS$genero, DEFLACIONADOS$FAIXA_ETARIA, DEFLACIONADOS$familia)
+A <- plot_model(modelo1, type = "pred", terms = c("FAIXA_ETARIA","genero")) +
+  ggtitle("Advogados (as)") + 
+  xlab("") +
+  coord_flip()
+
+B <- plot_model(modelo2, type = "pred", terms = c("FAIXA_ETARIA", "genero")) +
+  ggtitle("Delegado (a) de Polícia") +
+  xlab("") +
+  coord_flip()
+
+C <- plot_model(modelo3, type = "pred", terms = c("FAIXA_ETARIA", "genero")) +
+  ggtitle("Magistrados (as)") +
+  xlab("") +
+  coord_flip()
+  
+D <- plot_model(modelo4, type = "pred", terms = c("FAIXA_ETARIA", "genero")) +
+  ggtitle("Membros do MP") +
+  xlab("") +
+  coord_flip()
+  
+E <- plot_model(modelo5, type = "pred", terms = c("FAIXA_ETARIA", "genero")) +
+  ggtitle("Proc e advs Públicos") +
+  xlab("") +
+  coord_flip()
+  
+FA <- plot_model(modelo6, type = "pred", terms = c("FAIXA_ETARIA", "genero")) +
+  ggtitle("Serv de justiça") +
+  xlab("") +
+  coord_flip()
+  
+grid.arrange(A, B, C, D, E, FA)
